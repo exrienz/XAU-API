@@ -1,4 +1,4 @@
-# XAU Server - Real-Time Gold Price API
+# XAU Server - Real-Time Gold Price API.
 A lightweight real-time XAU/USD price scraper and API service.
 ## Features
 - Scrapes live XAU/USD price every 20 seconds
