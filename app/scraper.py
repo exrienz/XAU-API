@@ -1,27 +1,19 @@
-import re
-import subprocess
 import time
 import json
+import urllib.request
 from datetime import datetime
 
-def fetch_curl_output():
+def fetch_price():
     try:
-        url = f"https://r.jina.ai/primexbt.com/price-chart/currencies/xau-usd?nocache={int(time.time())}"
-        result = subprocess.run(
-            ["curl", "-s", "-H", "Cache-Control: no-cache", url],
-            capture_output=True,
-            text=True,
-            check=True
+        req = urllib.request.Request(
+            "https://api.gold-api.com/price/XAU",
+            headers={"Cache-Control": "no-cache"}
         )
-        return result.stdout
-    except subprocess.CalledProcessError:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read())
+            return float(data.get("price"))
+    except Exception:
         return None
-
-def extract_price(text):
-    match = re.search(r"XAU\s*/\s*USD\s*=+\s*([\d,]+\.\d+)", text, re.MULTILINE)
-    if match:
-        return float(match.group(1).replace(',', ''))
-    return None
 
 def save_price(price):
     with open("/app/price.json", "w") as f:
@@ -29,14 +21,10 @@ def save_price(price):
 
 def start_scraper():
     while True:
-        content = fetch_curl_output()
-        if content:
-            price = extract_price(content)
-            if price:
-                save_price(price)
-                print(f"✅ Updated Price: {price} at {datetime.utcnow()}")
-            else:
-                print("❌ Could not find XAU/USD price.")
+        price = fetch_price()
+        if price is not None:
+            save_price(price)
+            print(f"✅ Updated Price: {price} at {datetime.utcnow()}")
         else:
-            print("❌ Failed to fetch content.")
+            print("❌ Failed to fetch price.")
         time.sleep(20)
