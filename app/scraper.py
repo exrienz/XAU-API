@@ -44,11 +44,14 @@ def fetch_octafx_prices():
                     row = dict(zip(cols, cells))
                     symbol = row.get("Symbol", "")
                     bid = row.get("Bid", "")
+                    ask = row.get("Ask", "")
                     
                     for asset, symbol_name in SYMBOL_MAP.items():
-                        if symbol == symbol_name and bid:
+                        if symbol == symbol_name and bid and ask:
                             try:
-                                prices[asset.lower()] = float(bid)
+                                bid_price = float(bid)
+                                ask_price = float(ask)
+                                prices[asset.lower()] = (bid_price + ask_price) / 2
                             except ValueError:
                                 continue
         
