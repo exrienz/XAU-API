@@ -1,22 +1,61 @@
 import time
 import json
-import urllib.request
+import requests
+from bs4 import BeautifulSoup
 from datetime import datetime
 
-ASSETS = ["XAU", "XAG", "BTC"]
+SYMBOL_MAP = {
+    "XAU": "XAUUSD",
+    "XAG": "XAGUSD", 
+    "BTC": "BTCUSD"
+}
 
 
-def fetch_price(asset: str):
+def fetch_octafx_prices():
     try:
-        req = urllib.request.Request(
-            f"https://api.gold-api.com/price/{asset}",
-            headers={"Cache-Control": "no-cache"},
-        )
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read())
-            return float(data.get("price"))
-    except Exception:
-        return None
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+        
+        cache_buster = int(time.time() * 1000)
+        url = f"https://www.octafx.com/markets/quotes/mt5/?_={cache_buster}"
+        
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        
+        soup = BeautifulSoup(resp.text, "lxml")
+        prices = {}
+        
+        for table in soup.find_all("table"):
+            thead = table.find("thead")
+            if thead:
+                cols = [th.get_text(strip=True) for th in thead.find_all("th")]
+            else:
+                first = table.find("tr")
+                cols = [cell.get_text(strip=True) for cell in first.find_all(["th","td"])]
+            
+            body = table.find("tbody") or table
+            for tr in body.find_all("tr"):
+                cells = [td.get_text(strip=True) for td in tr.find_all(["th","td"])]
+                if len(cells) == len(cols):
+                    row = dict(zip(cols, cells))
+                    symbol = row.get("Symbol", "")
+                    bid = row.get("Bid", "")
+                    
+                    for asset, symbol_name in SYMBOL_MAP.items():
+                        if symbol == symbol_name and bid:
+                            try:
+                                prices[asset.lower()] = float(bid)
+                            except ValueError:
+                                continue
+        
+        return prices
+    except Exception as e:
+        print(f"❌ Failed to fetch OctaFX prices: {e}")
+        return {}
 
 
 def load_prices() -> dict:
@@ -34,15 +73,15 @@ def save_prices(prices: dict) -> None:
 
 def start_scraper():
     while True:
-        prices = load_prices()
-        for asset in ASSETS:
-            price = fetch_price(asset)
-            if price is not None:
-                prices[asset.lower()] = price
-                print(
-                    f"✅ Updated {asset} Price: {price} at {datetime.utcnow()}"
-                )
-            else:
-                print(f"❌ Failed to fetch {asset} price.")
-        save_prices(prices)
-        time.sleep(20)
+        current_prices = load_prices()
+        new_prices = fetch_octafx_prices()
+        
+        if new_prices:
+            current_prices.update(new_prices)
+            for asset, price in new_prices.items():
+                print(f"✅ Updated {asset.upper()} Price: {price} at {datetime.utcnow()}")
+            save_prices(current_prices)
+        else:
+            print("❌ Failed to fetch any prices from OctaFX")
+        
+        time.sleep(10)
