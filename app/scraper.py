@@ -49,8 +49,8 @@ def fetch_octafx_prices():
                     for asset, symbol_name in SYMBOL_MAP.items():
                         if symbol == symbol_name and bid and ask:
                             try:
-                                bid_price = float(bid)
-                                ask_price = float(ask)
+                                bid_price = float(bid.replace(',', ''))
+                                ask_price = float(ask.replace(',', ''))
                                 prices[asset.lower()] = (bid_price + ask_price) / 2
                             except ValueError:
                                 continue
