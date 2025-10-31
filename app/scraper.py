@@ -1,64 +1,77 @@
 import time
 import json
-import requests
-from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
 from datetime import datetime
 
-SYMBOL_MAP = {
-    "XAU": "XAUUSD",
-    "XAG": "XAGUSD", 
-    "BTC": "BTCUSD"
+# Define supported sources and their price element selectors
+SOURCES = {
+    "xau": {
+        "url": "https://www.exchangerates.org.uk/commodities/live-gold-prices/XAU-USD.html",
+        "selector": "div#p_XAUUSD",
+    },
+    "xag": {
+        "url": "https://www.exchangerates.org.uk/commodities/live-silver-prices/XAG-USD.html",
+        "selector": "div#p_XAGUSD",
+    },
+    "btc": {
+        "url": "https://www.exchangerates.org.uk/crypto-currencies/bitcoin-price-in-us-dollar-today-btc-usd",
+        "selector": "div#p_BTCUSD",
+    },
 }
 
 
-def fetch_octafx_prices():
+def get_price(page, source_key: str) -> float | None:
+    """
+    Fetches the latest price for the given source key (xau, xag, btc)
+    Returns the numeric price (float) or None if not found.
+    """
+    if source_key.lower() not in SOURCES:
+        print(f"❌ Unsupported source '{source_key}'. Valid: {list(SOURCES.keys())}")
+        return None
+
+    src = SOURCES[source_key.lower()]
+    url, selector = src["url"], src["selector"]
+
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-        }
-        
-        cache_buster = int(time.time() * 1000)
-        url = f"https://www.octafx.com/markets/quotes/mt5/?_={cache_buster}"
-        
-        resp = requests.get(url, headers=headers, timeout=10)
-        resp.raise_for_status()
-        
-        soup = BeautifulSoup(resp.text, "lxml")
-        prices = {}
-        
-        for table in soup.find_all("table"):
-            thead = table.find("thead")
-            if thead:
-                cols = [th.get_text(strip=True) for th in thead.find_all("th")]
-            else:
-                first = table.find("tr")
-                cols = [cell.get_text(strip=True) for cell in first.find_all(["th","td"])]
-            
-            body = table.find("tbody") or table
-            for tr in body.find_all("tr"):
-                cells = [td.get_text(strip=True) for td in tr.find_all(["th","td"])]
-                if len(cells) == len(cols):
-                    row = dict(zip(cols, cells))
-                    symbol = row.get("Symbol", "")
-                    bid = row.get("Bid", "")
-                    ask = row.get("Ask", "")
-                    
-                    for asset, symbol_name in SYMBOL_MAP.items():
-                        if symbol == symbol_name and bid and ask:
-                            try:
-                                bid_price = float(bid.replace(',', ''))
-                                ask_price = float(ask.replace(',', ''))
-                                prices[asset.lower()] = (bid_price + ask_price) / 2
-                            except ValueError:
-                                continue
-        
-        return prices
+        page.goto(url, wait_until="networkidle", timeout=15000)
+        element = page.wait_for_selector(selector, timeout=10000)
+        text = element.inner_text().strip()
+        numeric = float(text.replace(",", ""))
+        return numeric
+    except PWTimeoutError:
+        print(f"❌ Timeout while waiting for selector {selector} on {url}")
+        return None
+    except ValueError as e:
+        print(f"❌ Could not parse price text: '{text}' - {e}")
+        return None
     except Exception as e:
-        print(f"❌ Failed to fetch OctaFX prices: {e}")
-        return {}
+        print(f"❌ Error fetching {source_key.upper()} price: {e}")
+        return None
+
+
+def fetch_all_prices():
+    """
+    Fetches all prices using a single browser instance.
+    Returns a dict with keys: xau, xag, btc
+    """
+    prices = {}
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+
+            for asset in SOURCES.keys():
+                price = get_price(page, asset)
+                if price is not None:
+                    prices[asset] = price
+                    print(f"✅ Fetched {asset.upper()} Price: {price}")
+
+            browser.close()
+    except Exception as e:
+        print(f"❌ Failed to fetch prices: {e}")
+
+    return prices
 
 
 def load_prices() -> dict:
@@ -77,14 +90,14 @@ def save_prices(prices: dict) -> None:
 def start_scraper():
     while True:
         current_prices = load_prices()
-        new_prices = fetch_octafx_prices()
-        
+        new_prices = fetch_all_prices()
+
         if new_prices:
             current_prices.update(new_prices)
             for asset, price in new_prices.items():
                 print(f"✅ Updated {asset.upper()} Price: {price} at {datetime.utcnow()}")
             save_prices(current_prices)
         else:
-            print("❌ Failed to fetch any prices from OctaFX")
-        
+            print("❌ Failed to fetch any prices")
+
         time.sleep(10)
