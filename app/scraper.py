@@ -58,7 +58,18 @@ def fetch_all_prices():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # Launch with K8s-friendly args for containerized environments
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-dev-shm-usage',  # Overcome limited resource problems
+                    '--no-sandbox',              # Required for running as root in containers
+                    '--disable-setuid-sandbox',  # Required for running as root in containers
+                    '--disable-gpu',             # Not needed in headless mode
+                    '--disable-software-rasterizer',
+                    '--disable-extensions',
+                ]
+            )
             page = browser.new_page()
 
             for asset in SOURCES.keys():
@@ -70,6 +81,8 @@ def fetch_all_prices():
             browser.close()
     except Exception as e:
         print(f"❌ Failed to fetch prices: {e}")
+        import traceback
+        traceback.print_exc()
 
     return prices
 

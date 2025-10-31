@@ -24,5 +24,18 @@ COPY . .
 RUN chmod +x /app/start.sh
 
 ENV PYTHONUNBUFFERED=1
+
+# K8s compatibility: Chromium shared memory settings
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+# Chromium flags for containerized environments
+ENV PLAYWRIGHT_CHROMIUM_ARGS="--disable-dev-shm-usage --no-sandbox --disable-setuid-sandbox --disable-gpu"
+
 EXPOSE 8000
+
+# Health check for K8s liveness/readiness probes
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
 CMD ["/app/start.sh"]
