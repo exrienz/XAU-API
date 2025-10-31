@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  xau-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xau-api
+    ports:
+      - "8085:8000"
+    environment:
+      - API_KEY=${API_KEY}
+      - TZ=Asia/Kuala_Lumpur
+    env_file:
+      - .env
+    restart: always
+    # Increase shared memory size for Chromium (alternative to --disable-dev-shm-usage)
+    shm_size: '2gb'
+    # Optional: Limit resources for K8s-like environment
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      # Optional: Persist price data between restarts
+      - ./data:/app/data
+    # Security options (uncomment if needed)
+    # security_opt:
+    #   - seccomp:unconfined
