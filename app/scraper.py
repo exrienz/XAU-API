@@ -100,4 +100,4 @@ def start_scraper():
         else:
             print("❌ Failed to fetch any prices")
 
-        time.sleep(10)
+        time.sleep(20)
