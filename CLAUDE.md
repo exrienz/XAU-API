@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-XAU-API is a real-time commodity price scraper and API service built with FastAPI and Playwright. It continuously scrapes XAU/USD (gold), XAG/USD (silver), and BTC/USD prices from exchangerates.org.uk and exposes them via authenticated REST endpoints.
+XAU-API is a real-time commodity price scraper and API service built with FastAPI and Playwright. It continuously scrapes XAU/USD (gold) and XAG/USD (silver) prices from exchangerates.org.uk, BTC/USD prices from CoinMarketCap, and exposes them via authenticated REST endpoints.
 
 ## Architecture
 
@@ -20,8 +20,8 @@ The scraper runs independently and auto-restarts if it crashes (monitored by sta
 ### Data Flow
 
 1. Scraper launches headless Chromium browser via Playwright
-2. Navigates to exchangerates.org.uk pages for each asset (XAU, XAG, BTC)
-3. Waits for specific price element selectors (e.g., `div#p_XAUUSD`)
+2. Navigates to price source pages for each asset (XAU/XAG from exchangerates.org.uk, BTC from CoinMarketCap)
+3. Waits for specific price element selectors (e.g., `div#p_XAUUSD`, `.text-cdp-price-display`)
 4. Extracts and parses numeric price from element text
 5. Writes all prices to `/app/price.json` atomically
 6. API endpoints read from this file on each request
@@ -33,10 +33,13 @@ The scraper runs independently and auto-restarts if it crashes (monitored by sta
 - **Price Sources**:
   - XAU: https://www.exchangerates.org.uk/commodities/live-gold-prices/XAU-USD.html
   - XAG: https://www.exchangerates.org.uk/commodities/live-silver-prices/XAG-USD.html
-  - BTC: https://www.exchangerates.org.uk/crypto-currencies/bitcoin-price-in-us-dollar-today-btc-usd
+  - BTC: https://coinmarketcap.com/currencies/bitcoin/
 - **Authentication**: Simple API key via `X-API-Key` header (configured in `.env`)
 - **Timezone**: Hard-coded to Asia/Kuala_Lumpur in Dockerfile
-- **Element Selectors**: `div#p_XAUUSD`, `div#p_XAGUSD`, `div#p_BTCUSD`
+- **Element Selectors**:
+  - XAU: `div#p_XAUUSD`
+  - XAG: `div#p_XAGUSD`
+  - BTC: `.text-cdp-price-display`
 
 ## Development Commands
 

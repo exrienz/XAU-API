@@ -14,8 +14,8 @@ SOURCES = {
         "selector": "div#p_XAGUSD",
     },
     "btc": {
-        "url": "https://www.exchangerates.org.uk/crypto-currencies/bitcoin-price-in-us-dollar-today-btc-usd",
-        "selector": "div#p_BTCUSD",
+        "url": "https://coinmarketcap.com/currencies/bitcoin/",
+        "selector": "[data-test=\"text-cdp-price-display\"]",
     },
 }
 
@@ -33,10 +33,15 @@ def get_price(page, source_key: str) -> float | None:
     url, selector = src["url"], src["selector"]
 
     try:
-        page.goto(url, wait_until="networkidle", timeout=15000)
+        # Use domcontentloaded for faster page loads (especially for CoinMarketCap)
+        wait_strategy = "domcontentloaded" if source_key.lower() == "btc" else "networkidle"
+        page.goto(url, wait_until=wait_strategy, timeout=15000)
+
         element = page.wait_for_selector(selector, timeout=10000)
         text = element.inner_text().strip()
-        numeric = float(text.replace(",", ""))
+
+        # Remove currency symbols and commas before parsing
+        numeric = float(text.replace("$", "").replace(",", ""))
         return numeric
     except PWTimeoutError:
         print(f"❌ Timeout while waiting for selector {selector} on {url}")
