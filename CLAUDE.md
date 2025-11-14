@@ -20,8 +20,8 @@ The scraper runs independently and auto-restarts if it crashes (monitored by sta
 ### Data Flow
 
 1. Scraper launches headless Chromium browser via Playwright
-2. Navigates to price source pages for each asset (XAU/XAG from exchangerates.org.uk, BTC from CoinMarketCap)
-3. Waits for specific price element selectors (e.g., `div#p_XAUUSD`, `.text-cdp-price-display`)
+2. Navigates to price source pages for each asset (XAU/XAG from investing.com, BTC from CoinMarketCap)
+3. Waits for specific price element selectors (e.g., `[data-test="instrument-price-last"]`, `[data-test="text-cdp-price-display"]`)
 4. Extracts and parses numeric price from element text
 5. Writes all prices to `/app/price.json` atomically
 6. API endpoints read from this file on each request
@@ -31,15 +31,15 @@ The scraper runs independently and auto-restarts if it crashes (monitored by sta
 - **Price Storage**: File-based IPC via `/app/price.json` (not in-memory or database)
 - **Browser Automation**: Uses Playwright with headless Chromium (single browser instance per scrape cycle)
 - **Price Sources**:
-  - XAU: https://www.exchangerates.org.uk/commodities/live-gold-prices/XAU-USD.html
-  - XAG: https://www.exchangerates.org.uk/commodities/live-silver-prices/XAG-USD.html
+  - XAU: https://www.investing.com/currencies/xau-usd
+  - XAG: https://www.investing.com/currencies/xag-usd
   - BTC: https://coinmarketcap.com/currencies/bitcoin/
 - **Authentication**: Simple API key via `X-API-Key` header (configured in `.env`)
 - **Timezone**: Hard-coded to Asia/Kuala_Lumpur in Dockerfile
 - **Element Selectors**:
-  - XAU: `div#p_XAUUSD`
-  - XAG: `div#p_XAGUSD`
-  - BTC: `.text-cdp-price-display`
+  - XAU: `[data-test="instrument-price-last"]`
+  - XAG: `[data-test="instrument-price-last"]`
+  - BTC: `[data-test="text-cdp-price-display"]`
 
 ## Development Commands
 

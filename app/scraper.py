@@ -6,12 +6,12 @@ from datetime import datetime
 # Define supported sources and their price element selectors
 SOURCES = {
     "xau": {
-        "url": "https://www.exchangerates.org.uk/commodities/live-gold-prices/XAU-USD.html",
-        "selector": "div#p_XAUUSD",
+        "url": "https://www.investing.com/currencies/xau-usd",
+        "selector": "[data-test=\"instrument-price-last\"]",
     },
     "xag": {
-        "url": "https://www.exchangerates.org.uk/commodities/live-silver-prices/XAG-USD.html",
-        "selector": "div#p_XAGUSD",
+        "url": "https://www.investing.com/currencies/xag-usd",
+        "selector": "[data-test=\"instrument-price-last\"]",
     },
     "btc": {
         "url": "https://coinmarketcap.com/currencies/bitcoin/",
@@ -33,8 +33,8 @@ def get_price(page, source_key: str) -> float | None:
     url, selector = src["url"], src["selector"]
 
     try:
-        # Use domcontentloaded for faster page loads (especially for CoinMarketCap)
-        wait_strategy = "domcontentloaded" if source_key.lower() == "btc" else "networkidle"
+        # Use domcontentloaded for faster page loads (especially for CoinMarketCap and investing.com)
+        wait_strategy = "domcontentloaded" if source_key.lower() in ["btc", "xau", "xag"] else "networkidle"
         page.goto(url, wait_until=wait_strategy, timeout=15000)
 
         element = page.wait_for_selector(selector, timeout=10000)
